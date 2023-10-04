@@ -12,9 +12,10 @@ class AddPickingToInvoiceWizard(models.TransientModel):
         invoice = self.env['account.move'].browse(self.invoice_id.id)
         picking_vals = [(4, picking.id) for picking in self.picking_ids]
         invoice_line_vals = [(5, 0, 0)]
+        invoice_lines_to_sale_order_line = {}
 
         for picking in self.picking_ids:
-            sale_order = picking.sale_id  # Asumsi setiap picking terhubung ke satu sales order
+            sale_order = picking.sale_id  
             for move in picking.move_ids_without_package:
                 product = move.product_id
                 quantity = move.product_uom_qty
@@ -24,6 +25,7 @@ class AddPickingToInvoiceWizard(models.TransientModel):
                 for line in sale_order.order_line:
                     if line.product_id == product:
                         price_unit = line.price_unit
+                        invoice_lines_to_sale_order_line[product.id] = line.id
                         break
 
                 invoice_line_vals.append((0, 0, {
@@ -31,6 +33,7 @@ class AddPickingToInvoiceWizard(models.TransientModel):
                     'quantity': quantity,
                     'price_unit': price_unit,
                     'name': product.name,
+                    'move_line_ids': [(4, move.id)],  # tambahkan ini untuk link ke stock.move
                 }))
 
         update_vals = {
@@ -45,11 +48,11 @@ class AddPickingToInvoiceWizard(models.TransientModel):
         # Update invoice_ids field in related stock.picking records
         for picking in self.picking_ids:
             picking.write({'invoice_ids': [(6, 0, invoice.ids)]})
-
-            # Sambungkan invoice ke sales order
-            if picking.sale_id:
-                picking.sale_id.write({'invoice_ids': [(6, 0, invoice.ids)]})
-
+            for line in invoice.invoice_line_ids:
+                if line.product_id.id in invoice_lines_to_sale_order_line:
+                    line.write({
+                        'sale_line_ids': [(6,0, [invoice_lines_to_sale_order_line[line.product_id.id]])]
+                        })
         return True
 
     
@@ -65,6 +68,5 @@ class AddPickingToInvoiceWizard(models.TransientModel):
 
     @api.onchange('picking_ids')
     def _onchange_picking_ids(self):
-        #self.picking_ids = [(5, 0, 0)]
         domain = self._get_domain_for_pickings()
         return {'domain': {'picking_ids': domain}}
