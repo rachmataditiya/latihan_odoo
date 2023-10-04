@@ -11,8 +11,8 @@ class AddPickingToInvoiceWizard(models.TransientModel):
         # Ambil invoice dari konteks
         invoice = self.env['account.move'].browse(self.invoice_id.id)
         picking_vals = [(4, picking.id) for picking in self.picking_ids]
-        invoice_line_vals = []
-        
+        invoice_line_vals = [(5, 0, 0)]
+
         for picking in self.picking_ids:
             sale_order = picking.sale_id  # Asumsi setiap picking terhubung ke satu sales order
             for move in picking.move_ids_without_package:
@@ -35,22 +35,22 @@ class AddPickingToInvoiceWizard(models.TransientModel):
 
         update_vals = {
             'picking_ids': picking_vals,
-            'invoice_line_ids': invoice_line_vals
+            'invoice_line_ids': invoice_line_vals,
+            'from_invoice': True,
         }
-        
+
         if picking_vals or invoice_line_vals:
             invoice.write(update_vals)
 
         # Update invoice_ids field in related stock.picking records
         for picking in self.picking_ids:
-            picking.write({'invoice_ids': [(4, invoice.id)]})
+            picking.write({'invoice_ids': [(6, 0, invoice.ids)]})
 
             # Sambungkan invoice ke sales order
             if picking.sale_id:
-                picking.sale_id.write({'invoice_ids': [(4, invoice.id)]})
+                picking.sale_id.write({'invoice_ids': [(6, 0, invoice.ids)]})
 
-
-        return {'type': 'ir.actions.act_window_close'}
+        return True
 
     
     def _get_domain_for_pickings(self):

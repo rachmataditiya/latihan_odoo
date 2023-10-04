@@ -1,9 +1,11 @@
-from odoo import models, _
+from odoo import models, api, fields, _
 from odoo.exceptions import UserError
 
 
 class AccountMove(models.Model):
     _inherit = "account.move"
+
+    from_invoice = fields.Boolean('From Invoice', default = False)
 
     def button_add_picking(self):
         if not self.partner_id:
@@ -21,3 +23,12 @@ class AccountMove(models.Model):
             'target': 'new',
             'context': context,
         }
+    
+    @api.depends("from_invoice", "invoice_line_ids", "invoice_line_ids.move_line_ids")
+    def _compute_picking_ids(self):
+        for invoice in self:
+            invoice.delivery_count = len(invoice.picking_ids)
+            if not invoice.from_invoice:
+                invoice.picking_ids = invoice.mapped(
+                    "invoice_line_ids.move_line_ids.picking_id"
+                )
