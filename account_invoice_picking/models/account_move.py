@@ -1,10 +1,13 @@
-from odoo import models, fields, api
+from odoo import models, _
+from odoo.exceptions import UserError
 
 
 class AccountMove(models.Model):
     _inherit = "account.move"
 
     def button_add_picking(self):
+        if not self.partner_id:
+            raise UserError(_("Harap pilih customer terlebih dahulu."))
         context = {
             'default_invoice_id': self.id,
             'default_picking_ids': [(6, 0, self.picking_ids.ids)]
