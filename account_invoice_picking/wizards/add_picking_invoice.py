@@ -13,28 +13,51 @@ class AddPickingToInvoiceWizard(models.TransientModel):
         picking_vals = [(4, picking.id) for picking in self.picking_ids]
         invoice_line_vals = [(5, 0, 0)]
         invoice_lines_to_sale_order_line = {}
+        invoice_lines_to_purchase_order_line = {}
 
         for picking in self.picking_ids:
-            sale_order = picking.sale_id  
-            for move in picking.move_ids_without_package:
-                product = move.product_id
-                quantity = move.product_uom_qty
-                price_unit = 0.0
+            if picking.sale_id:
+                sale_order = picking.sale_id  
+                for move in picking.move_ids_without_package:
+                    product = move.product_id
+                    quantity = move.product_uom_qty
+                    price_unit = 0.0
 
-                # Dapatkan harga dari sales order
-                for line in sale_order.order_line:
-                    if line.product_id == product:
-                        price_unit = line.price_unit
-                        invoice_lines_to_sale_order_line[product.id] = line.id
-                        break
+                    # Dapatkan harga dari sales order
+                    for line in sale_order.order_line:
+                        if line.product_id == product:
+                            price_unit = line.price_unit
+                            invoice_lines_to_sale_order_line[product.id] = line.id
+                            break
 
-                invoice_line_vals.append((0, 0, {
-                    'product_id': product.id,
-                    'quantity': quantity,
-                    'price_unit': price_unit,
-                    'name': product.name,
-                    'move_line_ids': [(4, move.id)],  # tambahkan ini untuk link ke stock.move
-                }))
+                    invoice_line_vals.append((0, 0, {
+                        'product_id': product.id,
+                        'quantity': quantity,
+                        'price_unit': price_unit,
+                        'name': product.name,
+                        'move_line_ids': [(4, move.id)],  # tambahkan ini untuk link ke stock.move
+                    }))
+            elif picking.purchase_id:
+                purchase_order = picking.purchase_id  
+                for move in picking.move_ids_without_package:
+                    product = move.product_id
+                    quantity = move.product_uom_qty
+                    price_unit = 0.0
+
+                    # Dapatkan harga dari sales order
+                    for line in purchase_order.order_line:
+                        if line.product_id == product:
+                            price_unit = line.price_unit
+                            invoice_lines_to_purchase_order_line[product.id] = line.id
+                            break
+
+                    invoice_line_vals.append((0, 0, {
+                        'product_id': product.id,
+                        'quantity': quantity,
+                        'price_unit': price_unit,
+                        'name': product.name,
+                        'move_line_ids': [(4, move.id)],  # tambahkan ini untuk link ke stock.move
+                    })) 
 
         update_vals = {
             'picking_ids': picking_vals,
@@ -49,10 +72,16 @@ class AddPickingToInvoiceWizard(models.TransientModel):
         for picking in self.picking_ids:
             picking.write({'invoice_ids': [(6, 0, invoice.ids)]})
             for line in invoice.invoice_line_ids:
-                if line.product_id.id in invoice_lines_to_sale_order_line:
-                    line.write({
-                        'sale_line_ids': [(6,0, [invoice_lines_to_sale_order_line[line.product_id.id]])]
-                        })
+                if picking.sale_id:
+                    if line.product_id.id in invoice_lines_to_sale_order_line:
+                        line.write({
+                            'sale_line_ids': [(6,0, [invoice_lines_to_sale_order_line[line.product_id.id]])]
+                            })
+                elif picking.purchase_id:
+                    if line.product_id.id in invoice_lines_to_purchase_order_line:
+                        line.write({
+                            'purchase_line_id': invoice_lines_to_purchase_order_line[line.product_id.id]
+                            })
         return True
 
     
