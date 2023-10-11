@@ -82,7 +82,8 @@ class AddPickingToInvoiceWizard(models.TransientModel):
                         line.write({
                             'purchase_line_id': invoice_lines_to_purchase_order_line[line.product_id.id]
                             })
-        return True
+        # return True
+        return {'type': 'ir.actions.act_window_close'}
 
     
     def _get_domain_for_pickings(self):
