@@ -86,13 +86,21 @@ class AddPickingToInvoiceWizard(models.TransientModel):
 
     
     def _get_domain_for_pickings(self):
-        self.ensure_one()
-        invoice = self.env["account.move"].browse(self._context.get("active_id", False))
-        domain = [
-            ('partner_id', '=', invoice.partner_id.id),
-            ('state', '=', 'done'),
-            ('invoice_ids', '=', False)
-        ]
+        # self.ensure_one()
+        # invoice = self.env["account.move"].browse(self._context.get("active_id", False))
+        # domain = [
+        #     ('partner_id', '=', invoice.partner_id.id),
+        #     ('state', '=', 'done'),
+        #     ('invoice_ids', '=', False)
+        # ]
+
+        # filerisasinya memanfaatkan 'move_type' dari account.move
+        domain = [('partner_id', '=', self.invoice_id.partner_id.id), ('state', '=', 'done')]
+        if self.invoice_id.move_type == 'out_invoice':
+            domain.append(('picking_type_id.code', '=', 'outgoing'))
+        elif self.invoice_id.move_type == 'in_invoice':
+            domain.append(('picking_type_id.code', '=', 'incoming'))
+
         return domain
 
     @api.onchange('picking_ids')
